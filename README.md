@@ -49,7 +49,6 @@ It is highly recommended to use a virtual environment.
     if not working try this:
     ```
     py -m pip install -r requirements.txt
-
 ---
 
 ## How to Run

@@ -22,10 +22,20 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
     n_actions = env.action_space.n
     n_states = env.observation_space.n
 
+    # --- FIX: Prepare params by removing decay args from the dict ---
+    # אנו מעתיקים את המילון כדי לא לפגוע במקור
+    agent_params = train_config['agent_params'].copy()
+    
+    # "שולפים" את הפרמטרים ששייכים ללולאת האימון ולא לסוכן עצמו
+    # פונקציית pop גם מחזירה את הערך וגם מוחקת אותו מהמילון, כך שהסוכן לא יקבל אותם ויקרוס
+    min_epsilon = agent_params.pop('min_epsilon', 0.01)
+    epsilon_decay = agent_params.pop('epsilon_decay', 0.9995)
+
     if agent_type == "MC":
-        agent = MonteCarloAgent(n_actions, n_states, **train_config['agent_params'])
+        # עכשיו agent_params מכיל רק את מה שהסוכן צריך (epsilon, alpha, gamma)
+        agent = MonteCarloAgent(n_actions, n_states, **agent_params)
     elif agent_type == "SARSA":
-        agent = SarsaAgent(n_actions, n_states, **train_config['agent_params'])
+        agent = SarsaAgent(n_actions, n_states, **agent_params)
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -92,6 +102,11 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
             history["q_snapshots"].append(agent.Q.copy())
         else:
             history["q_snapshots"].append(None)
+
+        # --- UPDATE: Decay Epsilon ONLY for MC ---
+        # משתמשים במשתנים ששלפנו למעלה
+        if agent_type == "MC":
+            agent.decay_epsilon(epsilon_decay, min_epsilon)
 
     return pd.DataFrame(history), agent
 

@@ -1,9 +1,7 @@
 import os
-import argparse
 from src.maps import get_map
 from src.experiments import run_experiment_suite
 from src.plotting import plot_throughput, plot_returns, plot_policy_distance
-# הוספנו את האימפורט הזה כדי שנוכל להריץ את ה-Sweep
 from src.hyperparameter_study import run_sensitivity_study
 
 # --- Configuration ---
@@ -31,7 +29,6 @@ TRAIN_CONFIG = {
         'epsilon': 0.1,
         'alpha': 0.1,
         'gamma': 1.0,
-        # הוספנו פרמטרים שחסרים כדי שה-decay יעבוד תקין
         'min_epsilon': 0.01,
         'epsilon_decay': 0.9995 
     }
@@ -63,20 +60,16 @@ def main():
         
         # 2. Generate Plots
         plot_throughput(results_df, title_suffix=f"({algo})")
-        
         plot_returns(results_df, title_suffix=f"({algo})")
 
-        if best_agent is not None:
-            plot_policy_distance(runs_data, best_agent, title_suffix=f"({algo})")
+        # Optional Plot (Commented out)
+        # if best_agent is not None:
+        #     plot_policy_distance(runs_data, best_agent, title_suffix=f"({algo})")
         
         print(f"Finished {algo}. Check 'results' folder.\n")
 
     # --- PART 2: Hyperparameter Sensitivity Study ---
-    print(f"\n{'='*40}")
-    print(f"STARTING HYPERPARAMETER SENSITIVITY STUDY")
-    print(f"{'='*40}")
-    
-    # הפעלה של ה-Sweep (מהקובץ הנפרד)
+    # מפעיל את הבדיקה על כל הפרמטרים ועבור שני הסוכנים
     run_sensitivity_study()
 
     print("\nALL DONE! Check the 'results' folder for all plots.")

@@ -1,0 +1,6 @@
+gymnasium[toy_text]
+numpy
+matplotlib
+pandas
+seaborn
+tqdm

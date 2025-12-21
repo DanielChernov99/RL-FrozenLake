@@ -3,6 +3,8 @@ import argparse
 from src.maps import get_map
 from src.experiments import run_experiment_suite
 from src.plotting import plot_throughput, plot_returns, plot_policy_distance
+# הוספנו את האימפורט הזה כדי שנוכל להריץ את ה-Sweep
+from src.hyperparameter_study import run_sensitivity_study
 
 # --- Configuration ---
 MAP_SIZE = 6            
@@ -22,13 +24,16 @@ ENV_CONFIG = {
     }
 }
 
-# Training ParametersSS
+# Training Parameters
 TRAIN_CONFIG = {
     'episodes': EPISODES,
     'agent_params': {
         'epsilon': 0.1,
         'alpha': 0.1,
-        'gamma': 1.0
+        'gamma': 1.0,
+        # הוספנו פרמטרים שחסרים כדי שה-decay יעבוד תקין
+        'min_epsilon': 0.01,
+        'epsilon_decay': 0.9995 
     }
 }
 
@@ -36,6 +41,7 @@ def main():
     # Create results directory
     os.makedirs("results", exist_ok=True)
     
+    # --- PART 1: Main Comparison (MC vs SARSA) ---
     algorithms_to_run = ["MC", "SARSA"]
     shaping_types = ["baseline", "step_cost", "potential", "custom"]
 
@@ -65,7 +71,15 @@ def main():
         
         print(f"Finished {algo}. Check 'results' folder.\n")
 
-    print("ALL DONE!")
+    # --- PART 2: Hyperparameter Sensitivity Study ---
+    print(f"\n{'='*40}")
+    print(f"STARTING HYPERPARAMETER SENSITIVITY STUDY")
+    print(f"{'='*40}")
+    
+    # הפעלה של ה-Sweep (מהקובץ הנפרד)
+    run_sensitivity_study()
+
+    print("\nALL DONE! Check the 'results' folder for all plots.")
 
 if __name__ == "__main__":
     main()

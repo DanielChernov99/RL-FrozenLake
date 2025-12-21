@@ -45,7 +45,7 @@ It is highly recommended to use a virtual environment.
 2.  **Create and activate a virtual environment:**
     * Windows:
         ```bash
-        python -m venv venv
+        py -m venv venv
         venv\Scripts\activate
         ```
     * Mac/Linux:
@@ -67,4 +67,4 @@ It is highly recommended to use a virtual environment.
 To run the full suite of experiments comparing Baseline, Step-Cost, Potential, and Custom shaping for both MC and SARSA:
 
 ```bash
-python main.py
+py main.py

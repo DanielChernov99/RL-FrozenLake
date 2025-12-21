@@ -12,3 +12,12 @@ Install dependencies:
 
 ```bash
 py -m pip install -r requirements.txt
+
+```
+## Run
+```
+cd RL-FrozenLake; py main.py
+
+
+
+

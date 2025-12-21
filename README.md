@@ -46,6 +46,9 @@ It is highly recommended to use a virtual environment.
     ```bash
     pip install -r requirements.txt
     ```
+    if not working try this:
+    ```
+    py -m pip install -r requirements.txt
 
 ---
 

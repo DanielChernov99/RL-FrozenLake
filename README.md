@@ -42,19 +42,7 @@ It is highly recommended to use a virtual environment.
     cd RL-FrozenLake
     ```
 
-2.  **Create and activate a virtual environment:**
-    * Windows:
-        ```bash
-        py -m venv venv
-        venv\Scripts\activate
-        ```
-    * Mac/Linux:
-        ```bash
-        python3 -m venv venv
-        source venv/bin/activate
-        ```
-
-3.  **Install dependencies:**
+2.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```

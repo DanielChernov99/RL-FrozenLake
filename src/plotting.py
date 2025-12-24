@@ -20,21 +20,33 @@ def plot_throughput(data_df, title_suffix=""):
         save_path=save_path
     )
 
-def plot_returns(data_df, title_suffix=""):
+def plot_returns(data_df, title_suffix="", window_size=100):
     """
-    מייצר את גרף 4-הריבועים (FacetGrid).
-    הוא נשאר כאן כי הוא ייחודי לניסוי הראשי ולא משתמש בגרף הגנרי.
+    מייצר את גרף 4-הריבועים עם החלקה (Rolling Average).
     """
     set_style()
     
-    g = sns.FacetGrid(data_df, col="shaping", col_wrap=2, height=4, aspect=1.5, sharey=True)
-    g.map_dataframe(sns.lineplot, x="episode", y="return", errorbar='sd')
+    print(f"Calculating rolling average (window={window_size}) for returns plot...")
     
-    g.fig.suptitle(f"Per-Episode Returns - Separated {title_suffix}", y=1.02, fontsize=16)
-    g.set_axis_labels("Episode", "Return (Success Rate)")
+    # יצירת עותק ומיון כדי להבטיח שהחלון יחושב נכון לפי סדר הפרקים
+    df_smoothed = data_df.sort_values(by=["shaping", "run_id", "episode"]).copy()
+    
+    # חישוב Rolling Mean לכל ריצה בנפרד
+    # transform שומר על המבנה של ה-DataFrame המקורי
+    df_smoothed["smoothed_return"] = df_smoothed.groupby(["shaping", "run_id"])["return"] \
+                                                 .transform(lambda x: x.rolling(window=window_size, min_periods=1).mean())
+
+    # יצירת הגרף
+    g = sns.FacetGrid(df_smoothed, col="shaping", col_wrap=2, height=4, aspect=1.5, sharey=True)
+    
+    # n_boot=20 למהירות, ci=95 לדרישות
+    g.map_dataframe(sns.lineplot, x="episode", y="smoothed_return", errorbar=('ci', 95), n_boot=20)
+    
+    g.fig.suptitle(f"Per-Episode Returns (Rolling Avg {window_size}) {title_suffix}", y=1.02, fontsize=16)
+    g.set_axis_labels("Episode", "Smoothed Return")
     g.set_titles(col_template="{col_name}")
     
-    # קווי עזר (1.0 ו-0.0)
+    # קווי עזר
     for ax in g.axes.flat:
         ax.axhline(1.0, ls='--', c='green', alpha=0.3)
         ax.axhline(0.0, ls='--', c='red', alpha=0.3)
@@ -43,8 +55,6 @@ def plot_returns(data_df, title_suffix=""):
     plt.savefig(save_path, bbox_inches='tight')
     plt.close()
     print(f"Saved separated returns plot to {save_path}")
-
-# --- פונקציות למרחק מדיניות (אופציונלי) ---
 
 def compute_tv_distance(policy_q, optimal_q):
     if policy_q is None: return np.nan
@@ -68,7 +78,6 @@ def plot_policy_distance(runs_data_storage, best_agent, title_suffix=""):
     df_dist = pd.DataFrame(dist_data)
     save_path = os.path.join("results", f"policy_distance_{title_suffix.replace(' ', '_')}.png")
     
-    # שימוש בפונקציית העזר הגנרית
     plot_generic_lineplot(
         data_df=df_dist,
         x_col="episode",

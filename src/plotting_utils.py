@@ -9,20 +9,21 @@ def set_style():
 
 def plot_generic_lineplot(data_df, x_col, y_col, hue_col, title, xlabel, ylabel, save_path):
     """
-    פונקציית עזר גנרית ליצירת גרף קו עם סטיית תקן.
-    משמשת גם את main וגם את hyperparameter_study.
+    פונקציית עזר גנרית ליצירת גרף קו עם רווח בר סמך (CI).
     """
     set_style()
     plt.figure()
     
-    # errorbar='sd' calculates Standard Deviation automatically
+    # שימוש ב-Confidence Interval 95%
+    # n_boot=20 מאיץ דרמטית את זמן הריצה לעומת ברירת המחדל (1000)
     sns.lineplot(
         data=data_df, 
         x=x_col, 
         y=y_col, 
         hue=hue_col, 
         palette="viridis", 
-        errorbar='sd'
+        errorbar=('ci', 95),
+        n_boot=20  
     )
     
     plt.title(title)

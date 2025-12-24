@@ -31,7 +31,8 @@ class RewardShapingWrapper(gym.Wrapper):
         
         # --- OPTIMIZATION: Pre-calculate Potentials ---
         self.potentials = np.zeros(self.n_states)
-        if self.shaping_type == "potential":
+        # מחשבים פוטנציאלים גם עבור ה-Advanced
+        if self.shaping_type in ["potential", "custom_advanced"]:
             for s in range(self.n_states):
                 self.potentials[s] = self._calculate_potential_logic(s)
 
@@ -50,10 +51,6 @@ class RewardShapingWrapper(gym.Wrapper):
     def _calculate_potential_logic(self, state: int) -> float:
         return -float(self._get_distance(state))
 
-    def _potential(self, state: int) -> float:
-        """Fast lookup O(1)"""
-        return self.potentials[state]
-
     def reset(self, **kwargs):
         obs, info = super().reset(**kwargs)
         self.last_state = obs
@@ -70,37 +67,48 @@ class RewardShapingWrapper(gym.Wrapper):
         self.state_visits[next_state] += 1
         
         F = 0.0
+        
+        # --- Baseline ---
         if self.shaping_type == "baseline":
             F = 0.0
+            
+        # --- Step Cost ---
         elif self.shaping_type == "step_cost":
             F = self.step_cost_c
+            
+        # --- Potential Based ---
         elif self.shaping_type == "potential":
-            # Using cached values
             phi_next = self.potentials[next_state]
             phi_prev = self.potentials[self.last_state] if self.last_state is not None else 0.0
             F = self.potential_beta * ((self.gamma * phi_next) - phi_prev)
-        elif self.shaping_type == "custom":
-            # 1. Potential Component (Directional guidance - "The Compass")
-            # Calculate potential difference based on distance to goal
+            
+        # --- Custom 1: Safety First (בטיחות) ---
+        elif self.shaping_type == "custom_safety":
+            # הרעיון: עונש כבד מאוד אך ורק אם נופלים לבור.
+            # אנחנו מוודאים שזה בור (done=True וגם reward=0) וגם שזה לא נגמר בגלל הגבלת צעדים (truncated)
+            if done and reward == 0 and not truncated:
+                F = -1.0  # עונש משמעותי על נפילה
+            else:
+                F = 0.0
+
+        # --- Custom 2: Advanced Guidance (המשולב) ---
+        elif self.shaping_type == "custom_advanced":
+            # 1. Potential Component (המצפן)
             phi_next = self.potentials[next_state]
             phi_prev = self.potentials[self.last_state] if self.last_state is not None else 0.0
             potential_reward = self.potential_beta * ((self.gamma * phi_next) - phi_prev)
             
-            # 2. Step Cost Component (Encourages efficiency)
-            # A very small penalty to encourage shorter paths without causing 
-            # "suicide" behavior (terminating early to avoid accumulated costs).
+            # 2. Step Cost (יעילות)
             step_penalty = -0.001 
             
-            # 3. Safety Component (Penalty for holes)
+            # 3. Safety (עונש על בור)
             hole_penalty = 0.0
-            if done and reward == 0:
-                # One-time specific penalty for falling into a hole
+            if done and reward == 0 and not truncated:
                 hole_penalty = -0.5 
             
-            # Combine all components: Guidance + Efficiency + Safety
             F = potential_reward + step_penalty + hole_penalty
 
-        # Apply decay (Fast math)
+        # Apply decay
         if self.decay_rate < 1.0:
             k = max(1, self.episode_count)
             decay_factor = self.decay_rate ** (k - 1)

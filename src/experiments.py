@@ -8,6 +8,20 @@ from src.wrappers import RewardShapingWrapper
 
 
 def train_single_run(agent_type, shaping_type, env_config, train_config):
+    """
+    Executes a single training session for a specific agent and reward shaping strategy.
+
+    Args:
+        agent_type (str): "MC" or "SARSA".
+        shaping_type (str): The type of reward shaping to apply.
+        env_config (dict): Configuration for the environment.
+        train_config (dict): Configuration for training .
+
+    Returns:
+        tuple:
+            - pd.DataFrame: History of the run (episodes, returns, throughput).
+            - Agent: The trained agent object.
+    """
     env = gym.make(
         "FrozenLake-v1",
         desc=env_config['desc'],
@@ -22,17 +36,15 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
     n_actions = env.action_space.n
     n_states = env.observation_space.n
 
-    # --- FIX: Prepare params by removing decay args from the dict ---
-    # אנו מעתיקים את המילון כדי לא לפגוע במקור
     agent_params = train_config['agent_params'].copy()
     
-    # "שולפים" את הפרמטרים ששייכים ללולאת האימון ולא לסוכן עצמו
-    # פונקציית pop גם מחזירה את הערך וגם מוחקת אותו מהמילון, כך שהסוכן לא יקבל אותם ויקרוס
+    # "Extract" parameters that belong to the training loop logic, not the agent itself.
+    # The 'pop' function returns the value and removes it from the dictionary, 
+    # ensuring the agent class doesn't receive unexpected arguments.
     min_epsilon = agent_params.pop('min_epsilon', 0.01)
     epsilon_decay = agent_params.pop('epsilon_decay', 0.9995)
 
     if agent_type == "MC":
-        # עכשיו agent_params מכיל רק את מה שהסוכן צריך (epsilon, alpha, gamma)
         agent = MonteCarloAgent(n_actions, n_states, **agent_params)
     elif agent_type == "SARSA":
         agent = SarsaAgent(n_actions, n_states, **agent_params)
@@ -79,7 +91,6 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
                     break
 
             elif agent_type == "MC":
-                # ✔️ include terminal transition
                 episode_data_mc.append((obs, action, shaped_reward))
                 obs = next_state
 
@@ -103,8 +114,6 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
         else:
             history["q_snapshots"].append(None)
 
-        # --- UPDATE: Decay Epsilon ONLY for MC ---
-        # משתמשים במשתנים ששלפנו למעלה
         if agent_type == "MC":
             agent.decay_epsilon(epsilon_decay, min_epsilon)
 
@@ -112,6 +121,23 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
 
 
 def run_experiment_suite(agent_type, shaping_types, env_config, train_config, n_runs=20):
+    """
+    Orchestrates a full suite of experiments for a specific agent type across multiple 
+    reward shaping strategies.
+
+    Args:
+        agent_type (str): The algorithm to use ("MC" or "SARSA").
+        shaping_types (list): A list of shaping strategy names to test.
+        env_config (dict): Environment configuration.
+        train_config (dict): Training configuration.
+        n_runs (int): Number of independent runs per shaping strategy to ensure statistical significance.
+
+    Returns:
+        tuple:
+            - pd.DataFrame: Aggregated results from all runs (excluding Q-tables).
+            - dict: Raw storage of full run data per shaping type.
+            - Agent: The single best performing agent instance across all runs.
+    """
     all_results = []
     best_agent_overall = None
     best_performance = -np.inf

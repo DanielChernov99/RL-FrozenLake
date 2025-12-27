@@ -1,5 +1,3 @@
-# src/maps.py
-
 def get_map(size=6):
     """
     Returns a custom map based on size.
@@ -17,10 +15,10 @@ def get_map(size=6):
         # 6x6 Map (~14% Holes)
     
         return [
-            "SFFHHH",
-            "FFFFHH",
+            "SFHFHH",
+            "FFFFFH",
             "FFFFFF",
-            "FFFFFF",
+            "FFFFHF",
             "FFFFFF",
             "HFFFFG"
         ]

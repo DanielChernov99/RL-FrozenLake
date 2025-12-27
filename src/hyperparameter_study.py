@@ -5,13 +5,20 @@ from src.experiments import train_single_run
 from src.maps import get_map
 from src.plotting_utils import plot_generic_lineplot
 
+"""
+Hyperparameter Study Module
+
+This script is responsible for running sensitivity analysis on agent parameters (like Alpha and Gamma).
+It executes sweeps over defined ranges, plots the results, and returns the optimal configuration.
+"""
+
 # --- Configuration for Sweep ---
 MAP_SIZE = 6
-N_EPISODES = 5000  # פחות פרקים לסריקה כדי שיהיה מהיר
-N_RUNS_PER_VAL = 5 # מספיק כדי לקבל אינדיקציה
-SHAPING_TYPE = "potential" # נשתמש בזה כבסיס להשוואה
+N_EPISODES = 5000   
+N_RUNS_PER_VAL = 5 
+SHAPING_TYPE = "potential" 
 
-# הערכים לבדיקה
+# Values to test
 SWEEP_CONFIG = {
     "alpha": [0.05, 0.1, 0.2],
     "gamma": [0.95, 0.99, 1.0],
@@ -41,7 +48,17 @@ DEFAULT_TRAIN_CONFIG = {
 }
 
 def run_single_sweep_and_plot(agent_type, param_name, param_values, config_type, inner_key):
-    """מריץ בדיקה, מייצר גרף, ומחזיר את הערך המנצח"""
+    """
+    Executes a parameter sweep, generates a sensitivity plot, and identifies the best value.
+    Args:
+        agent_type (str): The agent to test ("MC" or "SARSA").
+        param_name (str): Display name for the parameter (e.g., "Alpha").
+        param_values (list): List of values to iterate over.
+        config_type (str): Which config dict to update ("agent" or "shaping").
+        inner_key (str): The specific dictionary key to update (e.g., "alpha").
+    Returns:
+        float/int: The parameter value that yielded the highest average throughput.
+    """
     print(f"\n[{agent_type}] Sweeping {param_name} values: {param_values}")
     all_results = []
     final_performances = {}
@@ -66,12 +83,11 @@ def run_single_sweep_and_plot(agent_type, param_name, param_values, config_type,
             temp_df['run'] = run_i
             all_results.append(temp_df)
             
-            # צוברים את הביצועים הסופיים
             avg_throughput += df["throughput"].iloc[-1]
         
         final_performances[val] = avg_throughput / N_RUNS_PER_VAL
 
-    # יצירת הגרף
+
     full_df = pd.concat(all_results, ignore_index=True)
     os.makedirs("results", exist_ok=True)
     save_path = os.path.join("results", f"sensitivity_{agent_type}_{param_name}.png")
@@ -87,14 +103,19 @@ def run_single_sweep_and_plot(agent_type, param_name, param_values, config_type,
         save_path=save_path
     )
 
-    # מציאת המנצח
     best_val = max(final_performances, key=final_performances.get)
     print(f"Winner for {param_name}: {best_val} (Avg Throughput: {final_performances[best_val]:.3f})")
     return best_val
 
 def find_best_hyperparameters(agent_type):
     """
-    מריץ את הסריקה ומחזיר את המילון עם הפרמטרים האופטימליים.
+    Runs the full hyperparameter optimization suite.
+    It performs sequential sweeps and returns a dictionary with the optimal parameters found.
+    Args:
+        agent_type (str): The agent to optimize.
+
+    Returns:
+        dict: A dictionary containing the best 'alpha' and 'gamma' found.
     """
     print(f"{'='*40}")
     print(f"STARTING HYPERPARAMETER TUNING FOR {agent_type}")

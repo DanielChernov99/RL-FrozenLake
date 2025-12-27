@@ -6,7 +6,13 @@ import os
 from src.plotting_utils import set_style, plot_generic_lineplot
 
 def plot_throughput(data_df, title_suffix=""):
-    """מייצר את גרף ה-Throughput לניסוי הראשי"""
+    """
+    Generates and saves the Throughput (Cumulative Success Rate) plot for the main experiment.
+
+    Args:
+        data_df (pd.DataFrame): The aggregated results DataFrame containing 'episode', 'throughput', and 'shaping'.
+        title_suffix (str): A suffix to append to the plot title and filename (e.g., agent name).
+    """
     save_path = os.path.join("results", f"throughput_{title_suffix.replace(' ', '_')}.png")
     
     plot_generic_lineplot(
@@ -22,31 +28,34 @@ def plot_throughput(data_df, title_suffix=""):
 
 def plot_returns(data_df, title_suffix="", window_size=100):
     """
-    מייצר את גרף 4-הריבועים עם החלקה (Rolling Average).
+    Generates a faceted plot (multiple subplots) showing the smoothed returns (Rolling Average) 
+    for each shaping method.
+
+    Args:
+        data_df (pd.DataFrame): The raw results DataFrame.
+        title_suffix (str): Suffix for title/filename.
+        window_size (int): The window size for the rolling mean calculation.
     """
     set_style()
     
     print(f"Calculating rolling average (window={window_size}) for returns plot...")
     
-    # יצירת עותק ומיון כדי להבטיח שהחלון יחושב נכון לפי סדר הפרקים
+    # Create a copy and sort to ensure the rolling window is calculated correctly according to episode order
     df_smoothed = data_df.sort_values(by=["shaping", "run_id", "episode"]).copy()
     
-    # חישוב Rolling Mean לכל ריצה בנפרד
-    # transform שומר על המבנה של ה-DataFrame המקורי
+    # Calculate Rolling Mean for each run separately to preserve statistical validity per run.
+    # 'transform' maintains the original DataFrame structure/index.
     df_smoothed["smoothed_return"] = df_smoothed.groupby(["shaping", "run_id"])["return"] \
                                                  .transform(lambda x: x.rolling(window=window_size, min_periods=1).mean())
 
-    # יצירת הגרף
     g = sns.FacetGrid(df_smoothed, col="shaping", col_wrap=2, height=4, aspect=1.5, sharey=True)
     
-    # n_boot=20 למהירות, ci=95 לדרישות
     g.map_dataframe(sns.lineplot, x="episode", y="smoothed_return", errorbar=('ci', 95), n_boot=20)
     
     g.fig.suptitle(f"Per-Episode Returns (Rolling Avg {window_size}) {title_suffix}", y=1.02, fontsize=16)
     g.set_axis_labels("Episode", "Smoothed Return")
     g.set_titles(col_template="{col_name}")
     
-    # קווי עזר
     for ax in g.axes.flat:
         ax.axhline(1.0, ls='--', c='green', alpha=0.3)
         ax.axhline(0.0, ls='--', c='red', alpha=0.3)
@@ -57,6 +66,17 @@ def plot_returns(data_df, title_suffix="", window_size=100):
     print(f"Saved separated returns plot to {save_path}")
 
 def compute_tv_distance(policy_q, optimal_q):
+    """
+    Calculates the Total Variation distance metric between two policies derived from Q-tables.
+    It measures the fraction of states where the greedy action differs between the current policy and the optimal one.
+
+    Args:
+        policy_q (np.ndarray): The current Q-table snapshot.
+        optimal_q (np.ndarray): The reference optimal Q-table.
+
+    Returns:
+        float: The distance metric (0.0 = identical, 1.0 = completely different).
+    """
     if policy_q is None: return np.nan
     best_actions_current = np.argmax(policy_q, axis=1)
     best_actions_optimal = np.argmax(optimal_q, axis=1)
@@ -64,6 +84,14 @@ def compute_tv_distance(policy_q, optimal_q):
     return diffs / policy_q.shape[0]
 
 def plot_policy_distance(runs_data_storage, best_agent, title_suffix=""):
+    """
+    Calculates and plots the convergence distance of the policy towards the optimal policy over time.
+
+    Args:
+        runs_data_storage (dict): Dictionary containing DataFrames for each shaping type, including Q-table snapshots.
+        best_agent (Agent): The agent instance considered to be the optimal reference.
+        title_suffix (str): Suffix for title/filename.
+    """
     print("Calculating Policy Distances...")
     optimal_q = best_agent.Q
     dist_data = []

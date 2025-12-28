@@ -101,7 +101,7 @@ class RewardShapingWrapper(gym.Wrapper):
             # The idea: A very heavy penalty only if falling into a hole.
             # We verify that it is a hole (done=True AND reward=0) and that it did not end due to step limit (truncated).
             if done and reward == 0 and not truncated:
-                F = -1.0  # עונש משמעותי על נפילה
+                F = -1.0  
             else:
                 F = 0.0
 

@@ -1,0 +1,10 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Optional: Virtual Environments (אם יש לך)
+venv/
+env/
+.env

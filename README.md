@@ -38,7 +38,7 @@ It is highly recommended to use a virtual environment.
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/DanielChernov99/RL-FrozenLake.git](https://github.com/DanielChernov99/RL-FrozenLake.git)
+    git clone https://github.com/DanielChernov99/RL-FrozenLake.git
     cd RL-FrozenLake
     ```
 

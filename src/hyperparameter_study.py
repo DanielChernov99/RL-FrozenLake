@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 import os
+import seaborn as sns
+import matplotlib.pyplot as plt
 from src.experiments import train_single_run
 from src.maps import get_map
-from src.plotting_utils import plot_generic_lineplot
+from src.plotting_utils import set_style
 
 """
 Hyperparameter Study Module
@@ -49,73 +51,89 @@ DEFAULT_TRAIN_CONFIG = {
 
 def run_single_sweep_and_plot(agent_type, param_name, param_values, config_type, inner_key):
     """
-    Executes a parameter sweep, generates a sensitivity plot, and identifies the best value.
-    Args:
-        agent_type (str): The agent to test ("MC" or "SARSA").
-        param_name (str): Display name for the parameter (e.g., "Alpha").
-        param_values (list): List of values to iterate over.
-        config_type (str): Which config dict to update ("agent" or "shaping").
-        inner_key (str): The specific dictionary key to update (e.g., "alpha").
-    Returns:
-        float/int: The parameter value that yielded the highest average throughput.
+    Executes a parameter sweep, generates a FACETED sensitivity plot (separate graphs per value), 
+    and identifies the best value.
     """
     print(f"\n[{agent_type}] Sweeping {param_name} values: {param_values}")
     all_results = []
     final_performances = {}
 
     for val in param_values:
+        # Create fresh configuration copies
         env_config = DEFAULT_ENV_CONFIG.copy()
         env_config['shaping_params'] = DEFAULT_ENV_CONFIG['shaping_params'].copy()
         train_config = DEFAULT_TRAIN_CONFIG.copy()
         train_config['agent_params'] = DEFAULT_TRAIN_CONFIG['agent_params'].copy()
 
+        # Update the specific parameter being swept
         if config_type == 'agent':
             train_config['agent_params'][inner_key] = val
         elif config_type == 'shaping':
             env_config['shaping_params'][inner_key] = val
 
-        avg_throughput = 0
+        avg_return_metric = 0
         for run_i in range(N_RUNS_PER_VAL):
+            # Run training
             df, _ = train_single_run(agent_type, SHAPING_TYPE, env_config, train_config)
             
-            temp_df = df[['episode', 'throughput']].copy()
+            # === SMOOTHING ===
+            # Calculates the moving average to make the graph readable
+            df['smoothed_return'] = df['return'].rolling(window=200, min_periods=1).mean()
+            
+            temp_df = df[['episode', 'smoothed_return']].copy()
+            # Rename for plotting
+            temp_df.rename(columns={'smoothed_return': 'return'}, inplace=True)
+            
             temp_df['Value'] = str(val)
             temp_df['run'] = run_i
             all_results.append(temp_df)
             
-            avg_throughput += df["throughput"].iloc[-1]
+            # Performance metric based on end of training
+            avg_return_metric += df["return"].tail(200).mean()
         
-        final_performances[val] = avg_throughput / N_RUNS_PER_VAL
+        final_performances[val] = avg_return_metric / N_RUNS_PER_VAL
 
 
+    # Combine all results
     full_df = pd.concat(all_results, ignore_index=True)
+    
+    # Ensure results directory exists
     os.makedirs("results", exist_ok=True)
     save_path = os.path.join("results", f"sensitivity_{agent_type}_{param_name}.png")
     
-    plot_generic_lineplot(
-        data_df=full_df,
-        x_col="episode",
-        y_col="throughput",
-        hue_col="Value",
-        title=f"Sensitivity: {param_name} ({agent_type})",
-        xlabel="Episode",
-        ylabel="Throughput",
-        save_path=save_path
+    # === NEW PLOTTING LOGIC: FACETED GRAPHS ===
+    set_style() # Apply the project's visual style
+    
+    # sns.relplot allows creating subplots (columns) for each value automatically
+    g = sns.relplot(
+        data=full_df,
+        x="episode",
+        y="return",
+        col="Value",      # <--- This creates separate graphs for each parameter value
+        kind="line",      # Line plot
+        col_wrap=3,       # Maximum 3 graphs per row
+        height=4,         # Height of each small graph
+        aspect=1.2,       # Width ratio
+        facet_kws={'sharey': True} # Make sure all graphs share the same Y-axis scale for fair comparison
     )
+    
+    # Add a main title to the entire figure
+    g.fig.suptitle(f"Sensitivity Analysis: {param_name} ({agent_type})", y=1.02, fontsize=16)
+    g.set_axis_labels("Episode", "Avg Return (Smoothed)")
+    
+    # Save the figure
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close()
+    print(f"Saved faceted plot to {save_path}")
 
+    # Identify the best parameter value
     best_val = max(final_performances, key=final_performances.get)
-    print(f"Winner for {param_name}: {best_val} (Avg Throughput: {final_performances[best_val]:.3f})")
+    print(f"Winner for {param_name}: {best_val} (Avg Return Score: {final_performances[best_val]:.3f})")
     return best_val
 
 def find_best_hyperparameters(agent_type):
     """
     Runs the full hyperparameter optimization suite.
-    It performs sequential sweeps and returns a dictionary with the optimal parameters found.
-    Args:
-        agent_type (str): The agent to optimize.
-
-    Returns:
-        dict: A dictionary containing the best 'alpha' and 'gamma' found.
     """
     print(f"{'='*40}")
     print(f"STARTING HYPERPARAMETER TUNING FOR {agent_type}")

@@ -24,7 +24,7 @@ def plot_generic_lineplot(data_df, x_col, y_col, hue_col, title, xlabel, ylabel,
         x=x_col, 
         y=y_col, 
         hue=hue_col, 
-        palette="viridis", 
+        palette="tab10", 
         errorbar=('ci', 95),
         n_boot=20  
     )

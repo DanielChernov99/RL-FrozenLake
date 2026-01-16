@@ -7,6 +7,44 @@ from src.sarsa_agent import SarsaAgent
 from src.wrappers import RewardShapingWrapper
 
 
+def modify_env_success_rate(env, success_rate=0.7):
+    """
+    Modifies the FrozenLake environment to have a custom success rate.
+    Standard is_slippery=True gives 1/3 success. We want e.g. 0.7.
+    """
+    # The remaining probability is split between the two slip directions
+    slip_rate = (1.0 - success_rate) / 2.0
+    
+    # Access the internal transition table P[state][action]
+    # P[s][a] returns a list of tuples: (probability, next_state, reward, done)
+    # Gymnasium FrozenLake creates 3 transitions for slippery: [slip_left, intended, slip_right]
+    
+    # Check if P exists (safety check)
+    if not hasattr(env.unwrapped, "P"):
+        return env
+
+    for s in env.unwrapped.P:
+        for a in env.unwrapped.P[s]:
+            transitions = env.unwrapped.P[s][a]
+            
+            # We only modify if there are exactly 3 transitions (standard slippery structure)
+            if len(transitions) == 3:
+                # Unpack the existing transitions (tuples are immutable, so we reconstruct them)
+                t_slip1 = transitions[0]  # Usually (action-1)%4
+                t_intended = transitions[1] # Usually action
+                t_slip2 = transitions[2]  # Usually (action+1)%4
+                
+                # Create new tuples with updated probabilities
+                new_t_slip1 = (slip_rate, t_slip1[1], t_slip1[2], t_slip1[3])
+                new_t_intended = (success_rate, t_intended[1], t_intended[2], t_intended[3])
+                new_t_slip2 = (slip_rate, t_slip2[1], t_slip2[2], t_slip2[3])
+                
+                # Update the environment structure
+                env.unwrapped.P[s][a] = [new_t_slip1, new_t_intended, new_t_slip2]
+                
+    return env
+
+
 def train_single_run(agent_type, shaping_type, env_config, train_config):
     """
     Executes a single training session for a specific agent and reward shaping strategy.
@@ -27,6 +65,13 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
         desc=env_config['desc'],
         is_slippery=env_config['is_slippery']
     )
+
+    # === CRITICAL FIX: Update Success Rate to 0.7 ===
+    # Apply modification only if the environment is slippery
+    if env_config.get('is_slippery', False):
+        env = modify_env_success_rate(env, success_rate=0.7)
+    # ================================================
+
     env = RewardShapingWrapper(
         env,
         shaping_type=shaping_type,
@@ -39,8 +84,6 @@ def train_single_run(agent_type, shaping_type, env_config, train_config):
     agent_params = train_config['agent_params'].copy()
     
     # "Extract" parameters that belong to the training loop logic, not the agent itself.
-    # The 'pop' function returns the value and removes it from the dictionary, 
-    # ensuring the agent class doesn't receive unexpected arguments.
     min_epsilon = agent_params.pop('min_epsilon', 0.01)
     epsilon_decay = agent_params.pop('epsilon_decay', 0.9995)
 
@@ -124,19 +167,6 @@ def run_experiment_suite(agent_type, shaping_types, env_config, train_config, n_
     """
     Orchestrates a full suite of experiments for a specific agent type across multiple 
     reward shaping strategies.
-
-    Args:
-        agent_type (str): The algorithm to use ("MC" or "SARSA").
-        shaping_types (list): A list of shaping strategy names to test.
-        env_config (dict): Environment configuration.
-        train_config (dict): Training configuration.
-        n_runs (int): Number of independent runs per shaping strategy to ensure statistical significance.
-
-    Returns:
-        tuple:
-            - pd.DataFrame: Aggregated results from all runs (excluding Q-tables).
-            - dict: Raw storage of full run data per shaping type.
-            - Agent: The single best performing agent instance across all runs.
     """
     all_results = []
     best_agent_overall = None

@@ -26,11 +26,11 @@ def get_map(size=6):
         # 8x8 Map (~15% Holes)
         return [
             "SFFFFFFF",
-            "FFHFFFFF",
-            "FFFHFFHF",
             "FFFFFFFF",
-            "FFHFFHFF",
-            "FHFHFFFF",
+            "FFHFFFFF",
+            "FFHHFFFF",
+            "FFFFFHFF",
+            "FHFFFFFF",
             "FFFFHFFF",
             "HFFFFFFG"
         ]

@@ -1,11 +1,19 @@
+import sys
+import os
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
 import time
 import gymnasium as gym
 import numpy as np
+
 from src.mc_agent import MonteCarloAgent
 from src.sarsa_agent import SarsaAgent
 from src.wrappers import RewardShapingWrapper
 from src.maps import get_map
-from src.experiments import modify_env_success_rate # Import the fix we made earlier
+from src.experiments import modify_env_success_rate
 
 # ==========================================
 #        CONFIGURATION SECTION
@@ -20,7 +28,7 @@ SHAPING_TYPE = "potential"
 # 3. Training Settings
 TOTAL_EPISODES = 5000
 RENDER_INTERVAL = 1000  # Show visualization every X episodes
-MAP_SIZE = 8           # 6 or 8
+MAP_SIZE = 6           # 6 or 8
 
 # 4. Environment Physics
 IS_SLIPPERY = True

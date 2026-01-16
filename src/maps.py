@@ -19,7 +19,7 @@ def get_map(size=6):
             "FFFFFH",
             "FFFFFF",
             "FFFFHF",
-            "FFFFFF",
+            "FHFFFF",
             "HFFFFG"
         ]
     elif size == 8:

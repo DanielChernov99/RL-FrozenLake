@@ -10,7 +10,7 @@ from src.plotting_utils import set_style
 """
 Hyperparameter Study Module
 
-This script is responsible for running sensitivity analysis on agent parameters (like Alpha and Gamma).
+This script is responsible for running sensitivity analysis on agent parameters (Alpha and Epsilon).
 It executes sweeps over defined ranges, plots the results, and returns the optimal configuration.
 """
 
@@ -20,10 +20,10 @@ N_EPISODES = 5000
 N_RUNS_PER_VAL = 5 
 SHAPING_TYPE = "potential" 
 
-# Values to test
+# Values to test - UPDATED: Replaced Gamma with Epsilon
 SWEEP_CONFIG = {
     "alpha": [0.05, 0.1, 0.2],
-    "gamma": [0.95, 0.99, 1.0],
+    "epsilon": [0.05, 0.1, 0.2],
 }
 
 DEFAULT_ENV_CONFIG = {
@@ -41,9 +41,9 @@ DEFAULT_ENV_CONFIG = {
 DEFAULT_TRAIN_CONFIG = {
     'episodes': N_EPISODES,
     'agent_params': {
-        'epsilon': 0.1,
+        'epsilon': 0.1,  # Default value, will be overridden during sweep
         'alpha': 0.1,
-        'gamma': 1.0,
+        'gamma': 1.0,    # Fixed Gamma since we are strictly testing Epsilon
         'min_epsilon': 0.01,
         'epsilon_decay': 0.9995
     }
@@ -145,9 +145,12 @@ def find_best_hyperparameters(agent_type):
     best_alpha = run_single_sweep_and_plot(agent_type, "Alpha", SWEEP_CONFIG["alpha"], 'agent', 'alpha')
     best_params['alpha'] = best_alpha
 
-    # 2. Sweep Gamma
-    best_gamma = run_single_sweep_and_plot(agent_type, "Gamma", SWEEP_CONFIG["gamma"], 'agent', 'gamma')
-    best_params['gamma'] = best_gamma
+    # 2. Sweep Epsilon (Replacing Gamma)
+    best_epsilon = run_single_sweep_and_plot(agent_type, "Epsilon", SWEEP_CONFIG["epsilon"], 'agent', 'epsilon')
+    best_params['epsilon'] = best_epsilon
+    
+    # Note: Gamma remains fixed at 1.0 (from DEFAULT_TRAIN_CONFIG) unless changed manually
+    best_params['gamma'] = 1.0 
     
     print(f"\n>>> Best params found for {agent_type}: {best_params}")
     return best_params
